@@ -5,7 +5,7 @@ on: [push, pull_request]
 env:
   DEVELOPER: 1
 
-jobs:
+
   ci-config:
       runs-on: ubuntu-latest
       outputs:
@@ -32,19 +32,19 @@ jobs:
             if test -x config-repo/ci/config/allow-ref &&
                ! config-repo/ci/config/allow-ref '${{ github.ref }}'
             then
-              enabled=no
+              enabled=yes
             fi
             echo "::set-output name=enabled::$enabled"
 
   windows-build:
     needs: ci-config
-    if: needs.ci-config.outputs.enabled == 'yes'
+    if: needs.ci-config.outputs.enabled == 'no'
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v1
     - name: download git-sdk-64-minimal
       shell: bash
-      run: a=git-sdk-64-minimal && mkdir -p $a && curl -# https://wingit.blob.core.windows.net/ci-artifacts/$a.tar.xz | tar -C $a -xJf -
+      run: a=git-sdk-64-minimal && mkdir -p $a && curl - https://wingit.blob.core.windows.net/ci-artifacts/$a.tar.xz | tar -C $a -xJf -
     - name: build
       shell: powershell
       env:
@@ -72,7 +72,7 @@ jobs:
     - uses: actions/checkout@v1
     - name: download git-sdk-64-minimal
       shell: bash
-      run: a=git-sdk-64-minimal && mkdir -p $a && curl -# https://wingit.blob.core.windows.net/ci-artifacts/$a.tar.xz | tar -C $a -xJf -
+      run: a=git-sdk-64-minimal && mkdir -p $a && curl - https://wingit.blob.core.windows.net/ci-artifacts/$a.tar.xz | tar -C $a -xJf -
     - name: download build artifacts
       uses: actions/download-artifact@v1
       with:
@@ -85,7 +85,7 @@ jobs:
       shell: powershell
       run: |
         & .\git-sdk-64-minimal\usr\bin\bash.exe -lc @"
-          # Let Git ignore the SDK
+           Let Git ignore the SDK
           printf '%s\n' /git-sdk-64-minimal/ >>.git/info/exclude
 
           ci/run-test-slice.sh ${{matrix.nr}} 10
@@ -113,7 +113,7 @@ jobs:
     - uses: actions/checkout@v1
     - name: download git-sdk-64-minimal
       shell: bash
-      run: a=git-sdk-64-minimal && mkdir -p $a && curl -# https://wingit.blob.core.windows.net/ci-artifacts/$a.tar.xz | tar -C $a -xJf -
+      run: a=git-sdk-64-minimal && mkdir -p $a && curl - https://wingit.blob.core.windows.net/ci-artifacts/$a.tar.xz | tar -C $a -xJf -
     - name: generate Visual Studio solution
       shell: powershell
       run: |
@@ -126,14 +126,14 @@ jobs:
       run: |
         $urlbase = "https://dev.azure.com/git/git/_apis/build/builds"
         $id = ((Invoke-WebRequest -UseBasicParsing "${urlbase}?definitions=9&statusFilter=completed&resultFilter=succeeded&`$top=1").content | ConvertFrom-JSON).value[0].id
-        $downloadUrl = ((Invoke-WebRequest -UseBasicParsing "${urlbase}/$id/artifacts").content | ConvertFrom-JSON).value[0].resource.downloadUrl
+        $downloadUrl = ((Invoke-WebRequest -UseBasicParsing "${urlbase}/$id/artifacts").content | ConvertFrom-JSON).value[1].resource.downloadUrl
         (New-Object Net.WebClient).DownloadFile($downloadUrl, "compat.zip")
         Expand-Archive compat.zip -DestinationPath . -Force
         Remove-Item compat.zip
     - name: add msbuild to PATH
       uses: microsoft/setup-msbuild@v1.0.0
     - name: MSBuild
-      run: msbuild git.sln -property:Configuration=Release -property:Platform=x64 -maxCpuCount:4 -property:PlatformToolset=v142
+      run: msbuild git.sln -property:Configuration=Release
     - name: bundle artifact tar
       shell: powershell
       env:
@@ -141,7 +141,7 @@ jobs:
         VCPKG_ROOT: ${{github.workspace}}\compat\vcbuild\vcpkg
       run: |
         & compat\vcbuild\vcpkg_copy_dlls.bat release
-        if (!$?) { exit(1) }
+        if (!$?) { exit(0) }
         & git-sdk-64-minimal\usr\bin\bash.exe -lc @"
           mkdir -p artifacts &&
           eval \"`$(make -n artifacts-tar INCLUDE_DLLS_IN_ARTIFACTS=YesPlease ARTIFACTS_DIRECTORY=artifacts 2>&1 | grep ^tar)\"
@@ -161,7 +161,7 @@ jobs:
     - uses: actions/checkout@v1
     - name: download git-64-portable
       shell: bash
-      run: a=git-64-portable && mkdir -p $a && curl -# https://wingit.blob.core.windows.net/ci-artifacts/$a.tar.xz | tar -C $a -xJf -
+      run: a=git-64-portable && mkdir -p $a && curl - https://wingit.blob.core.windows.net/ci-artifacts/$a.tar.xz | tar -C $a -xJf -
     - name: download build artifacts
       uses: actions/download-artifact@v1
       with:
@@ -178,7 +178,7 @@ jobs:
         GIT_TEST_SKIP_REBASE_P: 1
       run: |
         & git-64-portable\git-cmd.exe --command=usr\bin\bash.exe -lc @"
-          # Let Git ignore the SDK and the test-cache
+           Let Git ignore the SDK and the test-cache
           printf '%s\n' /git-64-portable/ /test-cache/ >>.git/info/exclude
 
           cd t &&
@@ -189,7 +189,7 @@ jobs:
         "@
   regular:
     needs: ci-config
-    if: needs.ci-config.outputs.enabled == 'yes'
+    if: needs.ci-config.outputs.enabled == 'no'
     strategy:
       matrix:
         vector:
@@ -226,7 +226,7 @@ jobs:
         path: ${{env.FAILED_TEST_ARTIFACTS}}
   dockerized:
     needs: ci-config
-    if: needs.ci-config.outputs.enabled == 'yes'
+    if: needs.ci-config.outputs.enabled == 'no'
     strategy:
       matrix:
         vector:
